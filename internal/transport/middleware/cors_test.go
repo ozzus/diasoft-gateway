@@ -39,3 +39,26 @@ func TestCORSMiddlewareRejectsUnknownOriginPreflight(t *testing.T) {
 		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusForbidden)
 	}
 }
+
+func TestCORSMiddlewareAllowsWildcardOriginPreflight(t *testing.T) {
+	middleware := NewCORS([]string{"*"})
+	handler := middleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	req := httptest.NewRequest(http.MethodOptions, "/", nil)
+	req.Header.Set("Origin", "http://anywhere.example")
+	recorder := httptest.NewRecorder()
+
+	handler.ServeHTTP(recorder, req)
+
+	if recorder.Code != http.StatusNoContent {
+		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusNoContent)
+	}
+	if got := recorder.Header().Get("Access-Control-Allow-Origin"); got != "*" {
+		t.Fatalf("Access-Control-Allow-Origin = %q, want %q", got, "*")
+	}
+	if got := recorder.Header().Get("Access-Control-Allow-Headers"); got != "*" {
+		t.Fatalf("Access-Control-Allow-Headers = %q, want %q", got, "*")
+	}
+}

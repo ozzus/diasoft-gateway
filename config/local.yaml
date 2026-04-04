@@ -5,7 +5,7 @@ http:
   address: ":8080"
   trusted_proxies: []
   allowed_origins:
-    - "http://localhost:5173"
+    - "*"
 auth:
   jwt_secret: "diasoft-dev-secret"
   token_ttl: 12h

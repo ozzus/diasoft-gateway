@@ -35,8 +35,8 @@ func NewCORS(allowedOrigins []string) func(http.Handler) http.Handler {
 					w.Header().Add("Vary", "Origin")
 				}
 				if w.Header().Get("Access-Control-Allow-Origin") != "" {
-					w.Header().Set("Access-Control-Allow-Methods", "GET,POST,OPTIONS")
-					w.Header().Set("Access-Control-Allow-Headers", "Content-Type,Authorization")
+					w.Header().Set("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS,HEAD")
+					w.Header().Set("Access-Control-Allow-Headers", "*")
 					w.Header().Set("Access-Control-Max-Age", "600")
 				}
 			}
