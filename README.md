@@ -1,6 +1,6 @@
 # diasoft-gateway
 
-Public Go service for diploma verification, QR landing pages, public share-link resolution, and Kafka-driven read-model projection.
+Public Go service for diploma verification, QR landing pages, public share-link resolution, Kafka-driven read-model projection, and the canonical platform Swagger file.
 
 ## Responsibilities
 
@@ -11,6 +11,7 @@ Public Go service for diploma verification, QR landing pages, public share-link 
 - Redis cache and rate limiting
 - Kafka consumer for upstream diploma and share-link events
 - recovery worker for failed event processing
+- shared OpenAPI document for gateway public routes and registry internal routes
 
 ## Binaries
 
@@ -40,7 +41,13 @@ Public Go service for diploma verification, QR landing pages, public share-link 
 
 ## Swagger / OpenAPI
 
-Public API contract lives in [api/openapi/openapi.yaml](api/openapi/openapi.yaml).
+Canonical platform Swagger lives in [api/openapi/openapi.yaml](api/openapi/openapi.yaml).
+It now documents both:
+
+- gateway public API
+- registry internal API
+
+`diasoft-registry` and `diasoft-web` no longer keep separate local OpenAPI yaml files as the primary source of truth.
 
 ## Runtime notes
 

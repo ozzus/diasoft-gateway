@@ -1,14 +1,68 @@
 openapi: 3.0.3
 info:
-  title: Diasoft Gateway Public API
-  version: 1.0.0
-  description: Public verification API used by HR systems, QR scans, and share-link pages.
+  title: Diasoft Platform API
+  version: 1.1.0
+  description: Shared OpenAPI contract for the Diasoft diploma verification platform. The file is stored in diasoft-gateway and documents both public gateway routes and internal registry routes.
 servers:
   - url: http://localhost:8080
-    description: Local development
+    description: Gateway local runtime
+  - url: http://localhost:8081
+    description: Registry local runtime
   - url: https://verify.example.com
-    description: Public runtime
+    description: Public gateway runtime
+  - url: https://registry.example.com
+    description: Internal registry runtime
+security:
+  - bearerAuth: []
+tags:
+  - name: gateway-public
+  - name: gateway-pages
+  - name: gateway-runtime
+  - name: registry-auth
+  - name: registry-universities
+  - name: registry-imports
+  - name: registry-university
+  - name: registry-student
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    VerificationToken:
+      in: path
+      name: verificationToken
+      required: true
+      schema:
+        type: string
+    ShareToken:
+      in: path
+      name: shareToken
+      required: true
+      schema:
+        type: string
+    UniversityId:
+      in: path
+      name: id
+      required: true
+      schema:
+        type: string
+        format: uuid
+    ImportId:
+      in: path
+      name: id
+      required: true
+      schema:
+        type: string
+        format: uuid
+    DiplomaId:
+      in: path
+      name: id
+      required: true
+      schema:
+        type: string
+        format: uuid
   schemas:
     VerificationRequest:
       type: object
@@ -41,23 +95,157 @@ components:
       properties:
         error:
           type: string
-  parameters:
-    VerificationToken:
-      in: path
-      name: verificationToken
-      required: true
-      schema:
-        type: string
-    ShareToken:
-      in: path
-      name: shareToken
-      required: true
-      schema:
-        type: string
+    CurrentUser:
+      type: object
+      required: [subject, roles]
+      properties:
+        subject:
+          type: string
+        roles:
+          type: array
+          items:
+            type: string
+        universityId:
+          type: string
+          format: uuid
+          nullable: true
+        studentExternalId:
+          type: string
+          nullable: true
+    University:
+      type: object
+      required: [id, code, name, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        name:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+    ImportJob:
+      type: object
+      required: [id, universityId, objectKey, status, processedRows, failedRows, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        universityId:
+          type: string
+          format: uuid
+        objectKey:
+          type: string
+        status:
+          type: string
+          enum: [pending, processing, completed, partially_failed, failed]
+        totalRows:
+          type: integer
+          nullable: true
+        processedRows:
+          type: integer
+        failedRows:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    ImportJobError:
+      type: object
+      required: [id, importJobId, rowNumber, code, message, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        importJobId:
+          type: string
+          format: uuid
+        rowNumber:
+          type: integer
+        code:
+          type: string
+        message:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+    Diploma:
+      type: object
+      required: [id, universityId, universityCode, studentId, studentExternalId, ownerNameMask, diplomaNumber, programName, status, verificationToken, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        universityId:
+          type: string
+          format: uuid
+        universityCode:
+          type: string
+        studentId:
+          type: string
+          format: uuid
+        studentExternalId:
+          type: string
+        ownerNameMask:
+          type: string
+        diplomaNumber:
+          type: string
+        programName:
+          type: string
+        status:
+          type: string
+        verificationToken:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    RevokeRequest:
+      type: object
+      required: [reason]
+      properties:
+        reason:
+          type: string
+    ShareLinkRequest:
+      type: object
+      properties:
+        maxViews:
+          type: integer
+          minimum: 1
+    ShareLink:
+      type: object
+      required: [id, diplomaId, shareToken, expiresAt, usedViews, status, shareUrl]
+      properties:
+        id:
+          type: string
+          format: uuid
+        diplomaId:
+          type: string
+          format: uuid
+        shareToken:
+          type: string
+        expiresAt:
+          type: string
+          format: date-time
+        maxViews:
+          type: integer
+          nullable: true
+        usedViews:
+          type: integer
+        status:
+          type: string
+        shareUrl:
+          type: string
 paths:
   /api/v1/public/verify:
     post:
-      tags: [verification]
+      tags: [gateway-public]
       summary: Verify diploma by number and university code
       operationId: verifyDiplomaByNumber
       requestBody:
@@ -81,7 +269,7 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
   /api/v1/public/verify/{verificationToken}:
     get:
-      tags: [verification]
+      tags: [gateway-public]
       summary: Verify diploma by verification token
       operationId: verifyDiplomaByToken
       parameters:
@@ -101,7 +289,7 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
   /api/v1/public/share-links/{shareToken}:
     get:
-      tags: [share-links]
+      tags: [gateway-public]
       summary: Resolve public share link by token
       operationId: resolveShareLink
       parameters:
@@ -121,7 +309,7 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
   /v/{verificationToken}:
     get:
-      tags: [pages]
+      tags: [gateway-pages]
       summary: Render public verification page for QR scans
       operationId: renderVerificationPage
       parameters:
@@ -131,7 +319,7 @@ paths:
           description: HTML verification page
   /s/{shareToken}:
     get:
-      tags: [pages]
+      tags: [gateway-pages]
       summary: Render public share-link page
       operationId: renderShareLinkPage
       parameters:
@@ -141,22 +329,225 @@ paths:
           description: HTML share-link page
   /healthz:
     get:
-      tags: [runtime]
+      tags: [gateway-runtime]
       summary: Liveness probe
+      operationId: gatewayLiveness
       responses:
         '200':
           description: Gateway process is alive
   /readyz:
     get:
-      tags: [runtime]
+      tags: [gateway-runtime]
       summary: Readiness probe
+      operationId: gatewayReadiness
       responses:
         '200':
           description: Gateway is ready to serve traffic
   /metrics:
     get:
-      tags: [runtime]
+      tags: [gateway-runtime]
       summary: Prometheus metrics endpoint
+      operationId: gatewayMetrics
       responses:
         '200':
           description: Prometheus text exposition format
+  /api/v1/ping:
+    get:
+      tags: [registry-auth]
+      summary: Ping the registry service
+      operationId: pingRegistry
+      responses:
+        '200':
+          description: Registry is alive
+  /api/v1/me:
+    get:
+      tags: [registry-auth]
+      summary: Get current scoped user
+      operationId: getCurrentUser
+      responses:
+        '200':
+          description: Current user session
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CurrentUser'
+  /api/v1/universities:
+    get:
+      tags: [registry-universities]
+      summary: List universities visible to the current operator
+      operationId: listUniversities
+      responses:
+        '200':
+          description: University list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/University'
+  /api/v1/universities/{id}/imports:
+    get:
+      tags: [registry-imports]
+      summary: List import jobs for a university
+      operationId: listImportJobs
+      parameters:
+        - $ref: '#/components/parameters/UniversityId'
+      responses:
+        '200':
+          description: Import jobs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ImportJob'
+    post:
+      tags: [registry-imports]
+      summary: Create an import job
+      operationId: createImportJob
+      parameters:
+        - $ref: '#/components/parameters/UniversityId'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        '202':
+          description: Accepted import
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportJob'
+  /api/v1/imports/{id}:
+    get:
+      tags: [registry-imports]
+      summary: Get import job
+      operationId: getImportJob
+      parameters:
+        - $ref: '#/components/parameters/ImportId'
+      responses:
+        '200':
+          description: Import job
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportJob'
+  /api/v1/imports/{id}/errors:
+    get:
+      tags: [registry-imports]
+      summary: Get import row errors
+      operationId: getImportErrors
+      parameters:
+        - $ref: '#/components/parameters/ImportId'
+      responses:
+        '200':
+          description: Import errors
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ImportJobError'
+  /api/v1/university/diplomas:
+    get:
+      tags: [registry-university]
+      summary: List diplomas visible to the current university-scoped operator
+      operationId: listUniversityDiplomas
+      responses:
+        '200':
+          description: Diploma list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Diploma'
+  /api/v1/university/diplomas/{id}:
+    get:
+      tags: [registry-university]
+      summary: Get a university-scoped diploma
+      operationId: getUniversityDiploma
+      parameters:
+        - $ref: '#/components/parameters/DiplomaId'
+      responses:
+        '200':
+          description: Diploma detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Diploma'
+  /api/v1/university/diplomas/{id}/revoke:
+    post:
+      tags: [registry-university]
+      summary: Revoke a diploma
+      operationId: revokeDiploma
+      parameters:
+        - $ref: '#/components/parameters/DiplomaId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RevokeRequest'
+      responses:
+        '200':
+          description: Revoked diploma
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Diploma'
+  /api/v1/student/diplomas:
+    get:
+      tags: [registry-student]
+      summary: List diplomas for the current student scope
+      operationId: listStudentDiplomas
+      responses:
+        '200':
+          description: Student diploma list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Diploma'
+  /api/v1/student/diplomas/{id}:
+    get:
+      tags: [registry-student]
+      summary: Get a student-scoped diploma
+      operationId: getStudentDiploma
+      parameters:
+        - $ref: '#/components/parameters/DiplomaId'
+      responses:
+        '200':
+          description: Diploma detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Diploma'
+  /api/v1/student/diplomas/{id}/share-links:
+    post:
+      tags: [registry-student]
+      summary: Create a share link for the current student scope
+      operationId: createShareLink
+      parameters:
+        - $ref: '#/components/parameters/DiplomaId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ShareLinkRequest'
+      responses:
+        '200':
+          description: Share link created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShareLink'
