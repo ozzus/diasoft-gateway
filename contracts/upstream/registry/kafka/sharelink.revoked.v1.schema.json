@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://registry.example.com/contracts/kafka/sharelink.revoked.v1.schema.json",
+  "title": "sharelink.revoked.v1",
+  "type": "object",
+  "required": ["event_id", "event_type", "event_version", "occurred_at", "producer", "aggregate_type", "aggregate_id", "payload"],
+  "properties": {
+    "event_id": { "type": "string", "format": "uuid" },
+    "event_type": { "const": "sharelink.revoked.v1" },
+    "event_version": { "const": "v1" },
+    "occurred_at": { "type": "string", "format": "date-time" },
+    "producer": { "type": "string" },
+    "aggregate_type": { "const": "share_link" },
+    "aggregate_id": { "type": "string" },
+    "payload": {
+      "type": "object",
+      "required": ["share_token", "diploma_id", "status"],
+      "properties": {
+        "share_token": { "type": "string" },
+        "diploma_id": { "type": "string" },
+        "status": { "type": "string", "const": "revoked" }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": false
+}
