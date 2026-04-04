@@ -29,6 +29,7 @@ import (
 	"github.com/ssovich/diasoft-gateway/internal/transport/handler/publicverify"
 	"github.com/ssovich/diasoft-gateway/internal/transport/handler/studentsharelink"
 	transportmiddleware "github.com/ssovich/diasoft-gateway/internal/transport/middleware"
+	dbmigrations "github.com/ssovich/diasoft-gateway/migrations"
 )
 
 func main() {
@@ -60,6 +61,9 @@ func run(ctx context.Context) error {
 		return fmt.Errorf("connect postgres: %w", err)
 	}
 	defer dbPool.Close()
+	if err := dbmigrations.Apply(ctx, dbPool); err != nil {
+		return fmt.Errorf("apply postgres migrations: %w", err)
+	}
 
 	redisClient, err := redisinfra.NewClient(ctx, cfg.Redis)
 	if err != nil {
