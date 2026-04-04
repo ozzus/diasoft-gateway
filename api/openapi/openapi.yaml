@@ -935,7 +935,7 @@ paths:
     post:
       tags: [gateway-auth]
       summary: Upload university diplomas through the gateway private API
-      description: Accepts `.csv` and `.xlsx` files only. The upload is asynchronous. A successful request returns an import job id, and row-level issues are later available through `/api/v1/university/imports/{jobId}` and `/api/v1/university/imports/{jobId}/errors`.
+      description: Accepts `.csv` and `.xlsx` files only. The first non-empty row must be a header row and must contain `ФИО`, `номер_диплома`, `специальность`, and `год_выпуска` or their supported English aliases. Extra columns are ignored. The upload is asynchronous. A successful request returns an import job id, and row-level issues are later available through `/api/v1/university/imports/{jobId}` and `/api/v1/university/imports/{jobId}/errors`.
       operationId: uploadUniversityDiplomas
       requestBody:
         required: true
@@ -957,7 +957,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/GatewayImportAccepted'
         '400':
-          description: Invalid upload envelope or unsupported file type
+          description: Invalid upload envelope, missing header row, missing required headers, or unsupported file type
           content:
             application/json:
               schema:
