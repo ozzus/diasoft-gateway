@@ -1,0 +1,8 @@
+.env
+bin/
+dist/
+.idea/
+.codex
+/diasoft-gateway
+/docs/context.md
+/docs/dlq-replay.md
