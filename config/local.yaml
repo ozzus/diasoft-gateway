@@ -6,6 +6,13 @@ http:
   trusted_proxies: []
   allowed_origins:
     - "http://localhost:5173"
+auth:
+  jwt_secret: "diasoft-dev-secret"
+  token_ttl: 12h
+registry:
+  internal_base_url: "http://localhost:8081"
+  service_token: "diasoft-service-token"
+  timeout: 15s
 metrics:
   address: ":9090"
 tracing:

@@ -1,8 +1,8 @@
 openapi: 3.0.3
 info:
   title: Diasoft Platform API
-  version: 1.1.0
-  description: Shared OpenAPI contract for the Diasoft diploma verification platform. The file is stored in diasoft-gateway and documents both public gateway routes and internal registry routes.
+  version: 1.2.0
+  description: Shared OpenAPI contract for the Diasoft diploma verification platform. The file is stored in diasoft-gateway and documents public gateway routes, gateway private auth routes for the new frontend, and registry backoffice routes used by the current diasoft-web.
 servers:
   - url: http://localhost:8080
     description: Gateway local runtime
@@ -15,6 +15,7 @@ servers:
 security:
   - bearerAuth: []
 tags:
+  - name: gateway-auth
   - name: gateway-public
   - name: gateway-pages
   - name: gateway-runtime
@@ -95,6 +96,39 @@ components:
       properties:
         error:
           type: string
+    GatewayUserProfile:
+      type: object
+      required: [id, name, role]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        role:
+          type: string
+          enum: [university, student, hr]
+        organizationCode:
+          type: string
+          nullable: true
+    GatewayLoginRequest:
+      type: object
+      required: [login, password, role]
+      properties:
+        login:
+          type: string
+        password:
+          type: string
+        role:
+          type: string
+          enum: [university, student, hr]
+    GatewayLoginResponse:
+      type: object
+      required: [accessToken, user]
+      properties:
+        accessToken:
+          type: string
+        user:
+          $ref: '#/components/schemas/GatewayUserProfile'
     CurrentUser:
       type: object
       required: [subject, roles]
@@ -175,7 +209,7 @@ components:
           format: date-time
     Diploma:
       type: object
-      required: [id, universityId, universityCode, studentId, studentExternalId, ownerNameMask, diplomaNumber, programName, status, verificationToken, createdAt, updatedAt]
+      required: [id, universityId, universityCode, studentId, studentExternalId, ownerNameMask, diplomaNumber, programName, status, createdAt, updatedAt]
       properties:
         id:
           type: string
@@ -190,16 +224,33 @@ components:
           format: uuid
         studentExternalId:
           type: string
+        ownerName:
+          type: string
+          nullable: true
         ownerNameMask:
           type: string
         diplomaNumber:
           type: string
         programName:
           type: string
+        graduationYear:
+          type: integer
+          nullable: true
+        recordHash:
+          type: string
+          nullable: true
         status:
           type: string
         verificationToken:
           type: string
+          nullable: true
+        revokedAt:
+          type: string
+          format: date-time
+          nullable: true
+        revokeReason:
+          type: string
+          nullable: true
         createdAt:
           type: string
           format: date-time
@@ -243,6 +294,55 @@ components:
         shareUrl:
           type: string
 paths:
+  /api/v1/auth/login:
+    post:
+      tags: [gateway-auth]
+      summary: Login into the gateway private API
+      operationId: gatewayPrivateLogin
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GatewayLoginRequest'
+      responses:
+        '200':
+          description: JWT session created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GatewayLoginResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/auth/me:
+    get:
+      tags: [gateway-auth]
+      summary: Restore current gateway private session
+      operationId: gatewayPrivateMe
+      responses:
+        '200':
+          description: Current private API user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GatewayUserProfile'
+        '401':
+          description: Missing or invalid JWT
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /api/v1/public/verify:
     post:
       tags: [gateway-public]

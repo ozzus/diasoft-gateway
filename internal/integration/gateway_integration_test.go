@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -568,19 +569,26 @@ func applyMigration(t *testing.T, ctx context.Context, dbPool *pgxpool.Pool) {
 	if !ok {
 		t.Fatalf("resolve caller path")
 	}
-	migrationPath := filepath.Join(filepath.Dir(filename), "..", "..", "migrations", "0001_init.sql")
-	content, err := os.ReadFile(migrationPath)
+	migrationPaths, err := filepath.Glob(filepath.Join(filepath.Dir(filename), "..", "..", "migrations", "*.sql"))
 	if err != nil {
-		t.Fatalf("read migration file: %v", err)
+		t.Fatalf("glob migration files: %v", err)
 	}
+	sort.Strings(migrationPaths)
 
-	for _, statement := range strings.Split(string(content), ";") {
-		statement = strings.TrimSpace(statement)
-		if statement == "" {
-			continue
+	for _, migrationPath := range migrationPaths {
+		content, err := os.ReadFile(migrationPath)
+		if err != nil {
+			t.Fatalf("read migration file %s: %v", migrationPath, err)
 		}
-		if _, err := dbPool.Exec(ctx, statement); err != nil {
-			t.Fatalf("apply migration statement %q: %v", statement, err)
+
+		for _, statement := range strings.Split(string(content), ";") {
+			statement = strings.TrimSpace(statement)
+			if statement == "" {
+				continue
+			}
+			if _, err := dbPool.Exec(ctx, statement); err != nil {
+				t.Fatalf("apply migration statement from %s %q: %v", migrationPath, statement, err)
+			}
 		}
 	}
 }

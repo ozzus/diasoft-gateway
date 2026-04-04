@@ -16,6 +16,8 @@ type Config struct {
 	Env       string          `yaml:"env" env:"ENV" env-default:"local"`
 	Log       LogConfig       `yaml:"log"`
 	HTTP      HTTPConfig      `yaml:"http"`
+	Auth      AuthConfig      `yaml:"auth"`
+	Registry  RegistryConfig  `yaml:"registry"`
 	Metrics   MetricsConfig   `yaml:"metrics"`
 	Tracing   TracingConfig   `yaml:"tracing"`
 	Database  DatabaseConfig  `yaml:"database"`
@@ -32,6 +34,17 @@ type HTTPConfig struct {
 	Address        string   `yaml:"address" env:"HTTP_ADDRESS" env-default:":8080"`
 	TrustedProxies []string `yaml:"trusted_proxies" env:"HTTP_TRUSTED_PROXIES" env-separator:","`
 	AllowedOrigins []string `yaml:"allowed_origins" env:"HTTP_ALLOWED_ORIGINS" env-separator:","`
+}
+
+type AuthConfig struct {
+	JWTSecret string        `yaml:"jwt_secret" env:"AUTH_JWT_SECRET" env-default:"diasoft-dev-secret"`
+	TokenTTL  time.Duration `yaml:"token_ttl" env:"AUTH_TOKEN_TTL" env-default:"12h"`
+}
+
+type RegistryConfig struct {
+	InternalBaseURL string        `yaml:"internal_base_url" env:"REGISTRY_INTERNAL_BASE_URL" env-default:"http://localhost:8081"`
+	ServiceToken    string        `yaml:"service_token" env:"REGISTRY_SERVICE_TOKEN"`
+	Timeout         time.Duration `yaml:"timeout" env:"REGISTRY_TIMEOUT" env-default:"15s"`
 }
 
 type MetricsConfig struct {
@@ -203,6 +216,9 @@ func (c *Config) normalize() {
 	c.HTTP.Address = strings.TrimSpace(c.HTTP.Address)
 	c.HTTP.TrustedProxies = compactStrings(c.HTTP.TrustedProxies)
 	c.HTTP.AllowedOrigins = compactStrings(c.HTTP.AllowedOrigins)
+	c.Auth.JWTSecret = strings.TrimSpace(c.Auth.JWTSecret)
+	c.Registry.InternalBaseURL = strings.TrimRight(strings.TrimSpace(c.Registry.InternalBaseURL), "/")
+	c.Registry.ServiceToken = strings.TrimSpace(c.Registry.ServiceToken)
 	c.Metrics.Address = strings.TrimSpace(c.Metrics.Address)
 	c.Tracing.OTLPEndpoint = strings.TrimSpace(c.Tracing.OTLPEndpoint)
 	c.Tracing.ServiceNamespace = strings.TrimSpace(c.Tracing.ServiceNamespace)
@@ -229,6 +245,18 @@ func (c *Config) normalize() {
 func (c Config) validate() error {
 	if c.HTTP.Address == "" {
 		return fmt.Errorf("http.address is required")
+	}
+	if c.Auth.JWTSecret == "" {
+		return fmt.Errorf("auth.jwt_secret is required")
+	}
+	if c.Auth.TokenTTL <= 0 {
+		return fmt.Errorf("auth.token_ttl must be greater than zero")
+	}
+	if c.Registry.InternalBaseURL == "" {
+		return fmt.Errorf("registry.internal_base_url is required")
+	}
+	if c.Registry.Timeout <= 0 {
+		return fmt.Errorf("registry.timeout must be greater than zero")
 	}
 	if c.Database.URL == "" {
 		return fmt.Errorf("database.url is required")

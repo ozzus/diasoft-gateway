@@ -1,17 +1,19 @@
 # diasoft-gateway
 
-Public Go service for diploma verification, QR landing pages, public share-link resolution, Kafka-driven read-model projection, and the canonical platform Swagger file.
+Go gateway for dual-mode diploma verification: public verify flow, JWT-based private API for the new frontend, Kafka-driven read-model projection, and the canonical platform Swagger file.
 
 ## Responsibilities
 
 - public diploma verification API
+- private JWT API for university/student/hr flows
 - QR verification page rendering
 - public share-link page rendering
 - PostgreSQL read-model storage
 - Redis cache and rate limiting
 - Kafka consumer for upstream diploma and share-link events
 - recovery worker for failed event processing
-- shared OpenAPI document for gateway public routes and registry internal routes
+- BFF/facade over `diasoft-registry` internal gateway endpoints
+- shared OpenAPI document for gateway public/private routes and registry backoffice routes
 
 ## Binaries
 
@@ -39,13 +41,30 @@ Public Go service for diploma verification, QR landing pages, public share-link 
 - `GET /readyz`
 - `GET /metrics`
 
+## Private API
+
+- `POST /api/v1/auth/login`
+- `GET /api/v1/auth/me`
+- `GET /api/v1/university/diplomas`
+- `POST /api/v1/university/diplomas/upload`
+- `GET /api/v1/university/imports/{jobId}`
+- `GET /api/v1/university/imports/{jobId}/errors`
+- `POST /api/v1/university/diplomas/{id}/revoke`
+- `GET /api/v1/university/diplomas/{id}/qr`
+- `GET /api/v1/student/diploma`
+- `POST /api/v1/student/share-link`
+- `DELETE /api/v1/student/share-link/{token}`
+
+Private API uses gateway-issued JWT tokens and proxies source-of-truth mutations/reads to `diasoft-registry` through `/internal/gateway/*` service-auth endpoints.
+
 ## Swagger / OpenAPI
 
 Canonical platform Swagger lives in [api/openapi/openapi.yaml](api/openapi/openapi.yaml).
-It now documents both:
+It documents:
 
 - gateway public API
-- registry internal API
+- gateway private API
+- registry backoffice/internal API
 
 `diasoft-registry` and `diasoft-web` no longer keep separate local OpenAPI yaml files as the primary source of truth.
 
