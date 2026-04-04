@@ -1,0 +1,162 @@
+openapi: 3.0.3
+info:
+  title: Diasoft Gateway Public API
+  version: 1.0.0
+  description: Public verification API used by HR systems, QR scans, and share-link pages.
+servers:
+  - url: http://localhost:8080
+    description: Local development
+  - url: https://verify.example.com
+    description: Public runtime
+components:
+  schemas:
+    VerificationRequest:
+      type: object
+      required: [diplomaNumber, universityCode]
+      properties:
+        diplomaNumber:
+          type: string
+          example: D-2026-0001
+        universityCode:
+          type: string
+          example: ITMO
+    VerificationResult:
+      type: object
+      required: [verdict]
+      properties:
+        verdict:
+          type: string
+          enum: [valid, revoked, expired, not_found]
+        universityCode:
+          type: string
+        diplomaNumber:
+          type: string
+        ownerNameMask:
+          type: string
+        program:
+          type: string
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+  parameters:
+    VerificationToken:
+      in: path
+      name: verificationToken
+      required: true
+      schema:
+        type: string
+    ShareToken:
+      in: path
+      name: shareToken
+      required: true
+      schema:
+        type: string
+paths:
+  /api/v1/public/verify:
+    post:
+      tags: [verification]
+      summary: Verify diploma by number and university code
+      operationId: verifyDiplomaByNumber
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerificationRequest'
+      responses:
+        '200':
+          description: Verification result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerificationResult'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/public/verify/{verificationToken}:
+    get:
+      tags: [verification]
+      summary: Verify diploma by verification token
+      operationId: verifyDiplomaByToken
+      parameters:
+        - $ref: '#/components/parameters/VerificationToken'
+      responses:
+        '200':
+          description: Verification result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerificationResult'
+        '400':
+          description: Invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/public/share-links/{shareToken}:
+    get:
+      tags: [share-links]
+      summary: Resolve public share link by token
+      operationId: resolveShareLink
+      parameters:
+        - $ref: '#/components/parameters/ShareToken'
+      responses:
+        '200':
+          description: Share-link verification result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerificationResult'
+        '400':
+          description: Invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /v/{verificationToken}:
+    get:
+      tags: [pages]
+      summary: Render public verification page for QR scans
+      operationId: renderVerificationPage
+      parameters:
+        - $ref: '#/components/parameters/VerificationToken'
+      responses:
+        '200':
+          description: HTML verification page
+  /s/{shareToken}:
+    get:
+      tags: [pages]
+      summary: Render public share-link page
+      operationId: renderShareLinkPage
+      parameters:
+        - $ref: '#/components/parameters/ShareToken'
+      responses:
+        '200':
+          description: HTML share-link page
+  /healthz:
+    get:
+      tags: [runtime]
+      summary: Liveness probe
+      responses:
+        '200':
+          description: Gateway process is alive
+  /readyz:
+    get:
+      tags: [runtime]
+      summary: Readiness probe
+      responses:
+        '200':
+          description: Gateway is ready to serve traffic
+  /metrics:
+    get:
+      tags: [runtime]
+      summary: Prometheus metrics endpoint
+      responses:
+        '200':
+          description: Prometheus text exposition format
