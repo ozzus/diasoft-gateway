@@ -2,7 +2,7 @@ openapi: 3.0.3
 info:
   title: Diasoft Platform API
   version: 1.2.0
-  description: Shared OpenAPI contract for the Diasoft diploma verification platform. The file is stored in diasoft-gateway and documents public gateway routes, gateway private auth routes for the new frontend, and registry backoffice routes used by the current diasoft-web.
+  description: Shared OpenAPI contract for the Diasoft diploma verification platform. The file is stored in diasoft-gateway and documents public gateway routes, gateway private auth routes for the new frontend, and registry backoffice routes used by the current diasoft-web. For overlapping private paths such as `/api/v1/university/*` and `/api/v1/student/*`, the path-level schema is the frontend-facing gateway BFF contract. Direct registry-only shapes remain available as `Registry*` component schemas.
 servers:
   - url: http://localhost:8080
     description: Gateway local runtime
@@ -121,6 +121,10 @@ components:
         role:
           type: string
           enum: [university, student, hr]
+      example:
+        login: ITMO
+        password: secret
+        role: university
     GatewayLoginResponse:
       type: object
       required: [accessToken, user]
@@ -129,7 +133,235 @@ components:
           type: string
         user:
           $ref: '#/components/schemas/GatewayUserProfile'
-    CurrentUser:
+      example:
+        accessToken: jwt-token
+        user:
+          id: 11111111-1111-1111-1111-111111111111
+          name: Иван Иванов
+          role: university
+          organizationCode: ITMO
+    GatewayUniversityDiplomaItem:
+      type: object
+      required: [id, diplomaNumber, universityCode, ownerName, ownerNameMask, program, status, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        diplomaNumber:
+          type: string
+        universityCode:
+          type: string
+        ownerName:
+          type: string
+        ownerNameMask:
+          type: string
+        program:
+          type: string
+        graduationYear:
+          type: integer
+          nullable: true
+        status:
+          type: string
+          enum: [active, revoked, expired]
+        hash:
+          type: string
+          nullable: true
+        verificationToken:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        revokedAt:
+          type: string
+          format: date-time
+          nullable: true
+        revokeReason:
+          type: string
+          nullable: true
+      example:
+        id: bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb
+        diplomaNumber: D-2026-0001
+        universityCode: ITMO
+        ownerName: Иван Иванов
+        ownerNameMask: И*** И***
+        program: Software Engineering
+        graduationYear: 2026
+        status: active
+        hash: d46ed54723c438a62b1e9e95b9d08ac165edd9e7a3ab0fff2e05651887e7e8ee
+        verificationToken: itmo-demo-verify-token
+        createdAt: '2026-04-04T16:38:19.133447Z'
+    GatewayUniversityDiplomaList:
+      type: object
+      required: [items, total]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/GatewayUniversityDiplomaItem'
+        total:
+          type: integer
+      example:
+        items:
+          - id: bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb
+            diplomaNumber: D-2026-0001
+            universityCode: ITMO
+            ownerName: Иван Иванов
+            ownerNameMask: И*** И***
+            program: Software Engineering
+            graduationYear: 2026
+            status: active
+            hash: d46ed54723c438a62b1e9e95b9d08ac165edd9e7a3ab0fff2e05651887e7e8ee
+            verificationToken: itmo-demo-verify-token
+            createdAt: '2026-04-04T16:38:19.133447Z'
+        total: 1
+    GatewayImportAccepted:
+      type: object
+      required: [jobId, status]
+      properties:
+        jobId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [pending, processing, completed, partially_failed, failed]
+      example:
+        jobId: cccccccc-cccc-cccc-cccc-cccccccccccc
+        status: pending
+    GatewayImportStatus:
+      type: object
+      required: [jobId, status, imported, failed, createdAt, updatedAt]
+      properties:
+        jobId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [pending, processing, completed, partially_failed, failed]
+        total:
+          type: integer
+          nullable: true
+        imported:
+          type: integer
+        failed:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      example:
+        jobId: cccccccc-cccc-cccc-cccc-cccccccccccc
+        status: partially_failed
+        total: 100
+        imported: 96
+        failed: 4
+        createdAt: '2026-04-04T10:00:00Z'
+        updatedAt: '2026-04-04T10:05:00Z'
+    GatewayImportError:
+      type: object
+      required: [row, message]
+      properties:
+        row:
+          type: integer
+        message:
+          type: string
+    GatewayImportErrorsResponse:
+      type: object
+      required: [errors]
+      properties:
+        errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/GatewayImportError'
+      example:
+        errors:
+          - row: 7
+            message: Некорректный год выпуска
+    GatewayRevokeRequest:
+      type: object
+      required: [reason]
+      properties:
+        reason:
+          type: string
+      example:
+        reason: Выявлен подлог
+    GatewayQrResponse:
+      type: object
+      required: [verificationToken, qrUrl, expiresAt]
+      properties:
+        verificationToken:
+          type: string
+        qrUrl:
+          type: string
+          format: uri
+        expiresAt:
+          type: string
+          format: date-time
+      example:
+        verificationToken: itmo-demo-verify-token
+        qrUrl: https://verify.example.com/v/itmo-demo-verify-token
+        expiresAt: '2099-12-31T00:00:00Z'
+    GatewayStudentDiploma:
+      type: object
+      required: [id, diplomaNumber, universityCode, program, status, verificationToken]
+      properties:
+        id:
+          type: string
+          format: uuid
+        diplomaNumber:
+          type: string
+        universityCode:
+          type: string
+        program:
+          type: string
+        graduationYear:
+          type: integer
+          nullable: true
+        status:
+          type: string
+          enum: [active, revoked, expired]
+        verificationToken:
+          type: string
+      example:
+        id: bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb
+        diplomaNumber: D-2026-0001
+        universityCode: ITMO
+        program: Software Engineering
+        graduationYear: 2026
+        status: active
+        verificationToken: itmo-demo-verify-token
+    GatewayStudentShareLinkRequest:
+      type: object
+      required: [ttlSeconds]
+      properties:
+        ttlSeconds:
+          type: integer
+          enum: [3600, 86400, 604800, 2592000]
+      example:
+        ttlSeconds: 86400
+    GatewayStudentShareLink:
+      type: object
+      required: [shareToken, shareUrl, expiresAt, ttlSeconds]
+      properties:
+        shareToken:
+          type: string
+        shareUrl:
+          type: string
+          format: uri
+        expiresAt:
+          type: string
+          format: date-time
+        ttlSeconds:
+          type: integer
+          enum: [3600, 86400, 604800, 2592000]
+      example:
+        shareToken: share-token
+        shareUrl: https://verify.example.com/s/share-token
+        expiresAt: '2026-04-05T10:00:00Z'
+        ttlSeconds: 86400
+    RegistryCurrentUser:
       type: object
       required: [subject, roles]
       properties:
@@ -146,7 +378,12 @@ components:
         studentExternalId:
           type: string
           nullable: true
-    University:
+      example:
+        subject: local-dev-user
+        roles: [super_admin, student]
+        universityId: 11111111-1111-1111-1111-111111111111
+        studentExternalId: student-001
+    RegistryUniversity:
       type: object
       required: [id, code, name, createdAt]
       properties:
@@ -160,7 +397,7 @@ components:
         createdAt:
           type: string
           format: date-time
-    ImportJob:
+    RegistryImportJob:
       type: object
       required: [id, universityId, objectKey, status, processedRows, failedRows, createdAt, updatedAt]
       properties:
@@ -188,7 +425,17 @@ components:
         updatedAt:
           type: string
           format: date-time
-    ImportJobError:
+      example:
+        id: cccccccc-cccc-cccc-cccc-cccccccccccc
+        universityId: 11111111-1111-1111-1111-111111111111
+        objectKey: imports/itmo-2026.csv
+        status: completed
+        totalRows: 100
+        processedRows: 100
+        failedRows: 0
+        createdAt: '2026-04-04T10:00:00Z'
+        updatedAt: '2026-04-04T10:05:00Z'
+    RegistryImportJobError:
       type: object
       required: [id, importJobId, rowNumber, code, message, createdAt]
       properties:
@@ -207,7 +454,14 @@ components:
         createdAt:
           type: string
           format: date-time
-    Diploma:
+      example:
+        id: dddddddd-dddd-dddd-dddd-dddddddddddd
+        importJobId: cccccccc-cccc-cccc-cccc-cccccccccccc
+        rowNumber: 7
+        code: invalid_graduation_year
+        message: Некорректный год выпуска
+        createdAt: '2026-04-04T10:05:00Z'
+    RegistryDiploma:
       type: object
       required: [id, universityId, universityCode, studentId, studentExternalId, ownerNameMask, diplomaNumber, programName, status, createdAt, updatedAt]
       properties:
@@ -257,19 +511,39 @@ components:
         updatedAt:
           type: string
           format: date-time
-    RevokeRequest:
+      example:
+        id: bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb
+        universityId: 11111111-1111-1111-1111-111111111111
+        universityCode: ITMO
+        studentId: eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee
+        studentExternalId: ITMO:D-2026-0001
+        ownerName: Иван Иванов
+        ownerNameMask: И*** И***
+        diplomaNumber: D-2026-0001
+        programName: Software Engineering
+        graduationYear: 2026
+        recordHash: d46ed54723c438a62b1e9e95b9d08ac165edd9e7a3ab0fff2e05651887e7e8ee
+        status: active
+        verificationToken: itmo-demo-verify-token
+        createdAt: '2026-04-04T16:38:19.133447Z'
+        updatedAt: '2026-04-04T16:38:19.133447Z'
+    RegistryRevokeRequest:
       type: object
       required: [reason]
       properties:
         reason:
           type: string
-    ShareLinkRequest:
+      example:
+        reason: Revoked by university operator
+    RegistryShareLinkRequest:
       type: object
       properties:
         maxViews:
           type: integer
           minimum: 1
-    ShareLink:
+      example:
+        maxViews: 5
+    RegistryShareLink:
       type: object
       required: [id, diplomaId, shareToken, expiresAt, usedViews, status, shareUrl]
       properties:
@@ -293,6 +567,15 @@ components:
           type: string
         shareUrl:
           type: string
+      example:
+        id: ffffffff-ffff-ffff-ffff-ffffffffffff
+        diplomaId: bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb
+        shareToken: share-token
+        expiresAt: '2026-04-05T10:00:00Z'
+        maxViews: 5
+        usedViews: 0
+        status: active
+        shareUrl: https://verify.example.com/s/share-token
 paths:
   /api/v1/auth/login:
     post:
@@ -348,6 +631,7 @@ paths:
       tags: [gateway-public]
       summary: Verify diploma by number and university code
       operationId: verifyDiplomaByNumber
+      security: []
       requestBody:
         required: true
         content:
@@ -372,6 +656,7 @@ paths:
       tags: [gateway-public]
       summary: Verify diploma by verification token
       operationId: verifyDiplomaByToken
+      security: []
       parameters:
         - $ref: '#/components/parameters/VerificationToken'
       responses:
@@ -392,6 +677,7 @@ paths:
       tags: [gateway-public]
       summary: Resolve public share link by token
       operationId: resolveShareLink
+      security: []
       parameters:
         - $ref: '#/components/parameters/ShareToken'
       responses:
@@ -412,6 +698,7 @@ paths:
       tags: [gateway-pages]
       summary: Render public verification page for QR scans
       operationId: renderVerificationPage
+      security: []
       parameters:
         - $ref: '#/components/parameters/VerificationToken'
       responses:
@@ -422,6 +709,7 @@ paths:
       tags: [gateway-pages]
       summary: Render public share-link page
       operationId: renderShareLinkPage
+      security: []
       parameters:
         - $ref: '#/components/parameters/ShareToken'
       responses:
@@ -432,6 +720,7 @@ paths:
       tags: [gateway-runtime]
       summary: Liveness probe
       operationId: gatewayLiveness
+      security: []
       responses:
         '200':
           description: Gateway process is alive
@@ -440,6 +729,7 @@ paths:
       tags: [gateway-runtime]
       summary: Readiness probe
       operationId: gatewayReadiness
+      security: []
       responses:
         '200':
           description: Gateway is ready to serve traffic
@@ -448,6 +738,7 @@ paths:
       tags: [gateway-runtime]
       summary: Prometheus metrics endpoint
       operationId: gatewayMetrics
+      security: []
       responses:
         '200':
           description: Prometheus text exposition format
@@ -470,7 +761,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/CurrentUser'
+                $ref: '#/components/schemas/RegistryCurrentUser'
   /api/v1/universities:
     get:
       tags: [registry-universities]
@@ -484,7 +775,7 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/University'
+                  $ref: '#/components/schemas/RegistryUniversity'
   /api/v1/universities/{id}/imports:
     get:
       tags: [registry-imports]
@@ -500,7 +791,7 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/ImportJob'
+                  $ref: '#/components/schemas/RegistryImportJob'
     post:
       tags: [registry-imports]
       summary: Create an import job
@@ -524,7 +815,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ImportJob'
+                $ref: '#/components/schemas/RegistryImportJob'
   /api/v1/imports/{id}:
     get:
       tags: [registry-imports]
@@ -538,7 +829,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ImportJob'
+                $ref: '#/components/schemas/RegistryImportJob'
   /api/v1/imports/{id}/errors:
     get:
       tags: [registry-imports]
@@ -554,40 +845,39 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/ImportJobError'
+                  $ref: '#/components/schemas/RegistryImportJobError'
   /api/v1/university/diplomas:
     get:
-      tags: [registry-university]
-      summary: List diplomas visible to the current university-scoped operator
+      tags: [gateway-auth]
+      summary: List diplomas visible to the current university user in the gateway private API
       operationId: listUniversityDiplomas
-      responses:
-        '200':
-          description: Diploma list
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Diploma'
-  /api/v1/university/diplomas/{id}:
-    get:
-      tags: [registry-university]
-      summary: Get a university-scoped diploma
-      operationId: getUniversityDiploma
       parameters:
-        - $ref: '#/components/parameters/DiplomaId'
+        - in: query
+          name: search
+          schema:
+            type: string
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [active, revoked, expired]
+        - in: query
+          name: page
+          schema:
+            type: integer
+            minimum: 1
       responses:
         '200':
-          description: Diploma detail
+          description: Paginated university diploma list
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Diploma'
+                $ref: '#/components/schemas/GatewayUniversityDiplomaList'
   /api/v1/university/diplomas/{id}/revoke:
     post:
-      tags: [registry-university]
-      summary: Revoke a diploma
-      operationId: revokeDiploma
+      tags: [gateway-auth]
+      summary: Revoke a diploma through the gateway private API
+      operationId: revokeUniversityDiploma
       parameters:
         - $ref: '#/components/parameters/DiplomaId'
       requestBody:
@@ -595,59 +885,126 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/RevokeRequest'
+              $ref: '#/components/schemas/GatewayRevokeRequest'
       responses:
         '200':
-          description: Revoked diploma
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Diploma'
-  /api/v1/student/diplomas:
+          description: Diploma revoked
+  /api/v1/university/diplomas/{id}/qr:
     get:
-      tags: [registry-student]
-      summary: List diplomas for the current student scope
-      operationId: listStudentDiplomas
-      responses:
-        '200':
-          description: Student diploma list
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Diploma'
-  /api/v1/student/diplomas/{id}:
-    get:
-      tags: [registry-student]
-      summary: Get a student-scoped diploma
-      operationId: getStudentDiploma
+      tags: [gateway-auth]
+      summary: Get QR payload for a diploma in the gateway private API
+      operationId: getUniversityDiplomaQr
       parameters:
         - $ref: '#/components/parameters/DiplomaId'
       responses:
         '200':
-          description: Diploma detail
+          description: QR payload
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Diploma'
-  /api/v1/student/diplomas/{id}/share-links:
+                $ref: '#/components/schemas/GatewayQrResponse'
+  /api/v1/university/diplomas/upload:
     post:
-      tags: [registry-student]
-      summary: Create a share link for the current student scope
-      operationId: createShareLink
-      parameters:
-        - $ref: '#/components/parameters/DiplomaId'
+      tags: [gateway-auth]
+      summary: Upload university diplomas through the gateway private API
+      operationId: uploadUniversityDiplomas
       requestBody:
-        required: false
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        '202':
+          description: Import accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GatewayImportAccepted'
+  /api/v1/university/imports/{jobId}:
+    get:
+      tags: [gateway-auth]
+      summary: Get university import job status from the gateway private API
+      operationId: getUniversityImportStatus
+      parameters:
+        - in: path
+          name: jobId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Import status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GatewayImportStatus'
+  /api/v1/university/imports/{jobId}/errors:
+    get:
+      tags: [gateway-auth]
+      summary: Get row-level import errors from the gateway private API
+      operationId: getUniversityImportErrors
+      parameters:
+        - in: path
+          name: jobId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Import row errors
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GatewayImportErrorsResponse'
+  /api/v1/student/diploma:
+    get:
+      tags: [gateway-auth]
+      summary: Get the current student diploma in the gateway private API
+      operationId: getStudentDiploma
+      responses:
+        '200':
+          description: Student diploma
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GatewayStudentDiploma'
+  /api/v1/student/share-link:
+    post:
+      tags: [gateway-auth]
+      summary: Create a temporary student share-link in the gateway private API
+      operationId: createStudentShareLink
+      requestBody:
+        required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ShareLinkRequest'
+              $ref: '#/components/schemas/GatewayStudentShareLinkRequest'
       responses:
         '200':
           description: Share link created
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ShareLink'
+                $ref: '#/components/schemas/GatewayStudentShareLink'
+  /api/v1/student/share-link/{token}:
+    delete:
+      tags: [gateway-auth]
+      summary: Revoke a student share-link in the gateway private API
+      operationId: deleteStudentShareLink
+      parameters:
+        - in: path
+          name: token
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Share link revoked
