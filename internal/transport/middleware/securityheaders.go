@@ -15,13 +15,20 @@ func NewSecurityHeaders() func(http.Handler) http.Handler {
 			w.Header().Set("X-Frame-Options", "DENY")
 			w.Header().Set("Referrer-Policy", "no-referrer")
 			w.Header().Set("Permissions-Policy", "geolocation=(), camera=(), microphone=()")
-			w.Header().Set("Content-Security-Policy", "default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'")
+			w.Header().Set("Content-Security-Policy", contentSecurityPolicyForPath(r.URL.Path))
 			if requestIsHTTPS(r) {
 				w.Header().Set("Strict-Transport-Security", "max-age=63072000; includeSubDomains")
 			}
 			next.ServeHTTP(w, r)
 		})
 	}
+}
+
+func contentSecurityPolicyForPath(path string) string {
+	if path == "/swagger" || strings.HasPrefix(path, "/swagger/") {
+		return "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+	}
+	return "default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
 }
 
 func requestIsHTTPS(r *http.Request) bool {
