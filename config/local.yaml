@@ -1,0 +1,57 @@
+env: local
+log:
+  level: info
+http:
+  address: ":8080"
+  trusted_proxies: []
+  allowed_origins:
+    - "http://localhost:5173"
+metrics:
+  address: ":9090"
+tracing:
+  enabled: false
+  otlp_endpoint: ""
+  insecure: true
+  sample_ratio: 1
+  service_namespace: "diasoft"
+database:
+  url: "postgres://postgres:postgres@localhost:5432/diasoft_gateway?sslmode=disable"
+  max_conns: 10
+redis:
+  addr: "localhost:6379"
+  password: ""
+  db: 0
+  verify_ttl: 5m
+  dial_timeout: 5s
+  read_timeout: 3s
+  write_timeout: 3s
+  pool_size: 10
+  min_idle_conns: 2
+  max_retries: 3
+rate_limit:
+  enabled: true
+  requests: 60
+  window: 1m
+  prefix: "rl"
+kafka:
+  brokers:
+    - "localhost:9092"
+  username: ""
+  password: ""
+  sasl_enabled: false
+  sasl_mechanism: "SCRAM-SHA-512"
+  tls_enabled: false
+  consumer_group: "diasoft-gateway-consumer"
+  project_retry_attempts: 3
+  project_retry_backoff: 250ms
+  project_retry_max_backoff: 2s
+  replay_consumer_group: "diasoft-gateway-dlq-replayer"
+  replay_source_topics: []
+  replay_event_types: []
+  replay_failure_stages: []
+  replay_event_ids: []
+  replay_max_messages: 0
+  replay_dry_run: false
+  diploma_topic: "diploma.lifecycle.v1"
+  share_link_topic: "sharelink.lifecycle.v1"
+  dlq_topic: "gateway.dlq.v1"
