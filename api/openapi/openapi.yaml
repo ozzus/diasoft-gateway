@@ -907,6 +907,7 @@ paths:
     post:
       tags: [gateway-auth]
       summary: Upload university diplomas through the gateway private API
+      description: Accepts `.csv` and `.xlsx` files only. The upload is asynchronous. A successful request returns an import job id, and row-level issues are later available through `/api/v1/university/imports/{jobId}` and `/api/v1/university/imports/{jobId}/errors`.
       operationId: uploadUniversityDiplomas
       requestBody:
         required: true
@@ -919,6 +920,7 @@ paths:
                 file:
                   type: string
                   format: binary
+                  description: CSV or XLSX file with a diploma registry batch.
       responses:
         '202':
           description: Import accepted
@@ -926,6 +928,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/GatewayImportAccepted'
+        '400':
+          description: Invalid upload envelope or unsupported file type
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /api/v1/university/imports/{jobId}:
     get:
       tags: [gateway-auth]

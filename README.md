@@ -57,6 +57,8 @@ Go gateway for dual-mode diploma verification: public verify flow, JWT-based pri
 
 Private API uses gateway-issued JWT tokens and proxies source-of-truth mutations/reads to `diasoft-registry` through `/internal/gateway/*` service-auth endpoints.
 
+University upload accepts only `.csv` and `.xlsx` files. The endpoint is asynchronous: a successful call returns `202 Accepted` with an import job id, and row-level issues are exposed later through `GET /api/v1/university/imports/{jobId}` and `GET /api/v1/university/imports/{jobId}/errors`.
+
 ## Swagger / OpenAPI
 
 Canonical platform Swagger lives in [api/openapi/openapi.yaml](api/openapi/openapi.yaml).
