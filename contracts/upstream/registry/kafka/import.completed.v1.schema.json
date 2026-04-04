@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://registry.example.com/contracts/kafka/import.completed.v1.schema.json",
+  "title": "import.completed.v1",
+  "type": "object",
+  "required": ["event_id", "event_type", "event_version", "occurred_at", "producer", "aggregate_type", "aggregate_id", "payload"],
+  "properties": {
+    "event_id": { "type": "string", "format": "uuid" },
+    "event_type": { "const": "import.completed.v1" },
+    "event_version": { "const": "v1" },
+    "occurred_at": { "type": "string", "format": "date-time" },
+    "producer": { "type": "string" },
+    "aggregate_type": { "const": "import_job" },
+    "aggregate_id": { "type": "string" },
+    "payload": {
+      "type": "object",
+      "required": ["import_job_id", "university_id", "status", "processed_rows", "failed_rows", "total_rows"],
+      "properties": {
+        "import_job_id": { "type": "string" },
+        "university_id": { "type": "string" },
+        "status": { "type": "string" },
+        "processed_rows": { "type": "integer" },
+        "failed_rows": { "type": "integer" },
+        "total_rows": { "type": "integer" }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": false
+}
