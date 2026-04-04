@@ -182,7 +182,9 @@ func (c *Client) DeleteStudentShareLink(ctx context.Context, diplomaID, token st
 
 func (c *Client) doJSON(ctx context.Context, method, pathWithQuery string, body *bytes.Reader, contentType string, dest any) error {
 	var requestBody io.Reader
-	requestBody = body
+	if body != nil {
+		requestBody = body
+	}
 	request, err := http.NewRequestWithContext(ctx, method, c.baseURL+pathWithQuery, requestBody)
 	if err != nil {
 		return fmt.Errorf("build registry request: %w", err)
