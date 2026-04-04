@@ -7,5 +7,7 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /bin/diasoft-gateway ./cmd
 
 FROM gcr.io/distroless/base-debian12
 COPY --from=build /bin/diasoft-gateway /diasoft-gateway
+COPY api/openapi/openapi.yaml /srv/openapi.yaml
+COPY api/openapi/swagger.html /srv/swagger.html
 EXPOSE 8080
 ENTRYPOINT ["/diasoft-gateway"]

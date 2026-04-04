@@ -27,6 +27,7 @@ import (
 	privatestudenthandler "github.com/ssovich/diasoft-gateway/internal/transport/handler/privatestudent"
 	privateuniversityhandler "github.com/ssovich/diasoft-gateway/internal/transport/handler/privateuniversity"
 	"github.com/ssovich/diasoft-gateway/internal/transport/handler/publicverify"
+	swaggerhandler "github.com/ssovich/diasoft-gateway/internal/transport/handler/swagger"
 	"github.com/ssovich/diasoft-gateway/internal/transport/handler/studentsharelink"
 	transportmiddleware "github.com/ssovich/diasoft-gateway/internal/transport/middleware"
 	dbmigrations "github.com/ssovich/diasoft-gateway/migrations"
@@ -94,6 +95,7 @@ func run(ctx context.Context) error {
 	authHandler := privateauthhandler.NewHTTPHandler(privateAuthService)
 	universityHandler := privateuniversityhandler.NewHTTPHandler(registryClient)
 	studentHandler := privatestudenthandler.NewHTTPHandler(registryClient)
+	swaggerHandler := swaggerhandler.NewHTTPHandler("/srv/openapi.yaml", "/srv/swagger.html")
 	publicRateLimit := transportmiddleware.NewRateLimit(rateLimiter, ipResolver, cfg.RateLimit.Window, metricsSvc)
 	privateAuth := transportmiddleware.NewPrivateAuth(privateTokenManager)
 	requireUniversity := transportmiddleware.RequirePrivateRole(privateapi.RoleUniversity)
@@ -118,6 +120,9 @@ func run(ctx context.Context) error {
 	mux.Handle("GET /api/v1/public/share-links/{shareToken}", publicRateLimit(http.HandlerFunc(shareLinkHandler.Resolve)))
 	mux.Handle("GET /v/{verificationToken}", publicRateLimit(http.HandlerFunc(verifyHandler.VerifyPage)))
 	mux.Handle("GET /s/{shareToken}", publicRateLimit(http.HandlerFunc(shareLinkHandler.ResolvePage)))
+	mux.HandleFunc("GET /openapi.yaml", swaggerHandler.OpenAPI)
+	mux.HandleFunc("GET /swagger", swaggerHandler.UI)
+	mux.HandleFunc("GET /swagger/", swaggerHandler.UI)
 	mux.Handle("GET /metrics", metricsSvc.Handler())
 	registerPlatformRoutes(mux, readiness(dbPool.Ping, func(ctx context.Context) error { return redisClient.Ping(ctx).Err() }))
 
