@@ -95,7 +95,12 @@ func run(ctx context.Context) error {
 	authHandler := privateauthhandler.NewHTTPHandler(privateAuthService)
 	universityHandler := privateuniversityhandler.NewHTTPHandler(registryClient)
 	studentHandler := privatestudenthandler.NewHTTPHandler(registryClient)
-	swaggerHandler := swaggerhandler.NewHTTPHandler("/srv/openapi.yaml", "/srv/swagger.html")
+	swaggerHandler := swaggerhandler.NewHTTPHandler(
+		"/srv/openapi.yaml",
+		"/srv/swagger.html",
+		"/srv/swagger-ui/swagger-ui.css",
+		"/srv/swagger-ui/swagger-ui-bundle.js",
+	)
 	publicRateLimit := transportmiddleware.NewRateLimit(rateLimiter, ipResolver, cfg.RateLimit.Window, metricsSvc)
 	privateAuth := transportmiddleware.NewPrivateAuth(privateTokenManager)
 	requireUniversity := transportmiddleware.RequirePrivateRole(privateapi.RoleUniversity)
@@ -123,6 +128,8 @@ func run(ctx context.Context) error {
 	mux.HandleFunc("GET /openapi.yaml", swaggerHandler.OpenAPI)
 	mux.HandleFunc("GET /swagger", swaggerHandler.UI)
 	mux.HandleFunc("GET /swagger/", swaggerHandler.UI)
+	mux.HandleFunc("GET /swagger/swagger-ui.css", swaggerHandler.CSS)
+	mux.HandleFunc("GET /swagger/swagger-ui-bundle.js", swaggerHandler.Bundle)
 	mux.Handle("GET /metrics", metricsSvc.Handler())
 	registerPlatformRoutes(mux, readiness(dbPool.Ping, func(ctx context.Context) error { return redisClient.Ping(ctx).Err() }))
 

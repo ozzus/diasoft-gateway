@@ -9,5 +9,6 @@ FROM gcr.io/distroless/base-debian12
 COPY --from=build /bin/diasoft-gateway /diasoft-gateway
 COPY api/openapi/openapi.yaml /srv/openapi.yaml
 COPY api/openapi/swagger.html /srv/swagger.html
+COPY api/openapi/swagger-ui /srv/swagger-ui
 EXPOSE 8080
 ENTRYPOINT ["/diasoft-gateway"]
