@@ -45,7 +45,7 @@ func TestSecurityHeadersMiddlewareRelaxesCSPForSwagger(t *testing.T) {
 	handler.ServeHTTP(recorder, req)
 
 	got := recorder.Result().Header.Get("Content-Security-Policy")
-	want := "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+	want := "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
 	if got != want {
 		t.Fatalf("Content-Security-Policy = %q, want %q", got, want)
 	}

@@ -26,7 +26,7 @@ func NewSecurityHeaders() func(http.Handler) http.Handler {
 
 func contentSecurityPolicyForPath(path string) string {
 	if path == "/swagger" || strings.HasPrefix(path, "/swagger/") {
-		return "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+		return "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
 	}
 	return "default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
 }
