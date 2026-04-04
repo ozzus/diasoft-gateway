@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://registry.example.com/contracts/kafka/sharelink.created.v1.schema.json",
+  "title": "sharelink.created.v1",
+  "type": "object",
+  "required": ["event_id", "event_type", "event_version", "occurred_at", "producer", "aggregate_type", "aggregate_id", "payload"],
+  "properties": {
+    "event_id": { "type": "string", "format": "uuid" },
+    "event_type": { "const": "sharelink.created.v1" },
+    "event_version": { "const": "v1" },
+    "occurred_at": { "type": "string", "format": "date-time" },
+    "producer": { "type": "string" },
+    "aggregate_type": { "const": "share_link" },
+    "aggregate_id": { "type": "string" },
+    "payload": {
+      "type": "object",
+      "required": ["share_token", "diploma_id", "expires_at", "max_views", "used_views", "status"],
+      "properties": {
+        "share_token": { "type": "string" },
+        "diploma_id": { "type": "string" },
+        "expires_at": { "type": "string", "format": "date-time" },
+        "max_views": { "type": "integer" },
+        "used_views": { "type": "integer" },
+        "status": { "type": "string" }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": false
+}
