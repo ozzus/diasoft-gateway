@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://registry.example.com/contracts/kafka/diploma.revoked.v1.schema.json",
+  "title": "diploma.revoked.v1",
+  "type": "object",
+  "required": ["event_id", "event_type", "event_version", "occurred_at", "producer", "aggregate_type", "aggregate_id", "payload"],
+  "properties": {
+    "event_id": { "type": "string", "format": "uuid" },
+    "event_type": { "const": "diploma.revoked.v1" },
+    "event_version": { "const": "v1" },
+    "occurred_at": { "type": "string", "format": "date-time" },
+    "producer": { "type": "string" },
+    "aggregate_type": { "const": "diploma" },
+    "aggregate_id": { "type": "string" },
+    "payload": {
+      "type": "object",
+      "required": ["diploma_id", "verification_token", "university_code", "diploma_number", "student_name_masked", "program_name", "status"],
+      "properties": {
+        "diploma_id": { "type": "string" },
+        "verification_token": { "type": "string" },
+        "university_code": { "type": "string" },
+        "diploma_number": { "type": "string" },
+        "student_name_masked": { "type": "string" },
+        "program_name": { "type": "string" },
+        "status": { "type": "string", "const": "revoked" }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": false
+}
