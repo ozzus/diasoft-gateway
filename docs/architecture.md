@@ -103,12 +103,44 @@ Dependencies:
 5. Gateway writes public verification audit into PostgreSQL.
 6. Gateway stores the verification result in Redis cache.
 
+Current live behavior note:
+
+- this path is still a projected read-model lookup
+- it does not validate a university digital signature yet
+- it is the current pragmatic runtime implementation, not the final trust model
+
+### Target verification path
+
+The selected production-shaped verification model is:
+
+- signed QR payload for authenticity
+- online status lookup for current diploma state
+
+Target steps:
+
+1. Client scans QR or opens a verification link.
+2. Gateway extracts diploma reference payload and signature metadata.
+3. Gateway validates the signature against the university public key identified by `kid`.
+4. Gateway performs one indexed status lookup by stable diploma identifier.
+5. Gateway returns `valid`, `revoked`, `expired`, or `not_found`.
+
+This avoids any verification strategy that resembles a full-table scan even at multi-million diploma scale.
+
 ### QR path
+
+Current live QR path:
 
 1. QR stores only `https://verify.<domain>/v/{verificationToken}`.
 2. User scans QR from a mobile phone.
 3. Browser opens the URL.
 4. Gateway resolves the verification token and renders HTML.
+
+Target QR path:
+
+1. QR stores a signed diploma reference payload or a URL carrying that payload.
+2. Payload identifies the diploma and signing key version.
+3. Gateway verifies the signature before checking status.
+4. Gateway resolves current status with one indexed lookup.
 
 ### Share-link path
 
