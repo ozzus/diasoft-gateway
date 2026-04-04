@@ -1,0 +1,122 @@
+stages:
+  - validate
+  - security
+  - integration
+  - contracts
+  - build
+  - publish
+
+variables:
+  GATEWAY_IMAGE: "$CI_REGISTRY_IMAGE/gateway-api"
+  GATEWAY_CONSUMER_IMAGE: "$CI_REGISTRY_IMAGE/gateway-consumer"
+  GATEWAY_REPLAYER_IMAGE: "$CI_REGISTRY_IMAGE/gateway-dlq-replayer"
+  CONTRACTS_PACKAGE_NAME: "gateway-contracts"
+  CONTRACTS_WORKDIR: ".ci-contracts"
+
+validate:
+  stage: validate
+  image: golang:1.25.0
+  script:
+    - go test ./...
+
+secrets_scan:
+  stage: security
+  image: zricethezav/gitleaks:v8.24.2
+  script:
+    - gitleaks detect --source . --no-git --redact
+
+dependency_scan:
+  stage: security
+  image: aquasec/trivy:0.59.1
+  entrypoint: [""]
+  script:
+    - trivy fs --scanners vuln --severity CRITICAL --exit-code 1 --no-progress .
+
+sbom:
+  stage: security
+  image: anchore/syft:v1.18.1
+  entrypoint: [""]
+  script:
+    - mkdir -p build
+    - syft dir:. -o cyclonedx-json=build/gateway-sbom.cdx.json
+  artifacts:
+    paths:
+      - build/gateway-sbom.cdx.json
+
+integration_tests:
+  stage: integration
+  image: golang:1.25.0
+  services:
+    - docker:27.3.1-dind
+  variables:
+    DOCKER_HOST: tcp://docker:2375
+    DOCKER_TLS_CERTDIR: ""
+    TESTCONTAINERS_HOST_OVERRIDE: docker
+    TESTCONTAINERS_RYUK_DISABLED: "true"
+  script:
+    - go test -tags=integration ./...
+
+contracts_artifacts:
+  stage: contracts
+  image: golang:1.25.0
+  before_script:
+    - apt-get update && apt-get install -y curl tar
+    - . ./scripts/fetch-registry-contracts.sh
+  script:
+    - go test ./internal/application/usecase -run TestRegistryKafkaSchemasStayAlignedWithProjector
+    - sh scripts/package-contracts.sh build/contracts
+  artifacts:
+    name: "gateway-contracts-$CI_COMMIT_SHA"
+    paths:
+      - build/contracts/gateway-contracts.tar.gz
+
+build_images:
+  stage: build
+  image: docker:27.3.1
+  services:
+    - docker:27.3.1-dind
+  script:
+    - docker build -t "$GATEWAY_IMAGE:$CI_COMMIT_SHA" .
+    - docker build -t "$GATEWAY_CONSUMER_IMAGE:$CI_COMMIT_SHA" -f Dockerfile.consumer .
+    - docker build -t "$GATEWAY_REPLAYER_IMAGE:$CI_COMMIT_SHA" -f Dockerfile.replayer .
+
+publish_images:
+  stage: publish
+  image: docker:27.3.1
+  services:
+    - docker:27.3.1-dind
+  script:
+    - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
+    - docker build -t "$GATEWAY_IMAGE:$CI_COMMIT_SHA" .
+    - docker build -t "$GATEWAY_CONSUMER_IMAGE:$CI_COMMIT_SHA" -f Dockerfile.consumer .
+    - docker build -t "$GATEWAY_REPLAYER_IMAGE:$CI_COMMIT_SHA" -f Dockerfile.replayer .
+    - docker push "$GATEWAY_IMAGE:$CI_COMMIT_SHA"
+    - docker push "$GATEWAY_CONSUMER_IMAGE:$CI_COMMIT_SHA"
+    - docker push "$GATEWAY_REPLAYER_IMAGE:$CI_COMMIT_SHA"
+  only:
+    - main
+
+sign_images:
+  stage: publish
+  image: gcr.io/projectsigstore/cosign:v2.4.1
+  entrypoint: [""]
+  needs:
+    - publish_images
+  script:
+    - cosign sign --yes --key env://COSIGN_PRIVATE_KEY "$GATEWAY_IMAGE:$CI_COMMIT_SHA"
+    - cosign sign --yes --key env://COSIGN_PRIVATE_KEY "$GATEWAY_CONSUMER_IMAGE:$CI_COMMIT_SHA"
+    - cosign sign --yes --key env://COSIGN_PRIVATE_KEY "$GATEWAY_REPLAYER_IMAGE:$CI_COMMIT_SHA"
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main" && $COSIGN_PRIVATE_KEY'
+
+publish_contracts:
+  stage: publish
+  image: debian:stable-slim
+  dependencies:
+    - contracts_artifacts
+  before_script:
+    - apt-get update && apt-get install -y curl
+  script:
+    - sh scripts/publish-contracts.sh build/contracts/gateway-contracts.tar.gz "$CI_COMMIT_SHA"
+  only:
+    - main
