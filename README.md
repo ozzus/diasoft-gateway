@@ -14,6 +14,7 @@ Go gateway for dual-mode diploma verification: public verify flow, JWT-based pri
 - recovery worker for failed event processing
 - BFF/facade over `diasoft-registry` internal gateway endpoints
 - shared OpenAPI document for gateway public/private routes and registry backoffice routes
+- GitHub Actions validation, publish, and promotion workflow
 
 ## Binaries
 
@@ -102,3 +103,9 @@ go test -tags=integration ./...
 ```
 
 Integration tests require a working Docker daemon.
+
+## CI/CD
+
+- canonical CI runs in GitHub Actions
+- images publish to `ghcr.io/ozzus/diasoft-gateway/*`
+- `platform-infra` promotion is done by GitHub-based direct commits for `dev` and pull requests for controlled promotion paths

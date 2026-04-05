@@ -1,0 +1,197 @@
+name: Gateway CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      promote_team:
+        description: Team for manual promotion
+        required: true
+        default: team1
+        type: choice
+        options:
+          - team1
+          - team2
+      promote_env:
+        description: Environment for manual promotion
+        required: true
+        default: prod
+        type: choice
+        options:
+          - dev
+          - prod
+      promotion_mode:
+        description: direct push or pull request
+        required: true
+        default: pr
+        type: choice
+        options:
+          - direct
+          - pr
+
+permissions:
+  contents: read
+
+env:
+  GATEWAY_IMAGE: ghcr.io/ozzus/diasoft-gateway/gateway-api
+  GATEWAY_CONSUMER_IMAGE: ghcr.io/ozzus/diasoft-gateway/gateway-consumer
+  GATEWAY_REPLAYER_IMAGE: ghcr.io/ozzus/diasoft-gateway/gateway-dlq-replayer
+  REGISTRY_KAFKA_CONTRACTS_DIR: contracts/upstream/registry/kafka
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25.8"
+      - run: go test ./...
+
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:v8.24.2 detect --source /repo --no-git --redact
+      - run: |
+          docker run --rm -v "$PWD:/repo" aquasec/trivy:0.59.1 fs --scanners vuln --severity CRITICAL --exit-code 1 --no-progress /repo
+      - run: mkdir -p build
+      - run: |
+          docker run --rm -v "$PWD:/repo" -v "$PWD/build:/build" anchore/syft:v1.18.1 dir:/repo -o cyclonedx-json=/build/gateway-sbom.cdx.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gateway-sbom-${{ github.sha }}
+          path: build/gateway-sbom.cdx.json
+
+  integration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25.8"
+      - run: go test -tags=integration ./...
+
+  contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25.8"
+      - run: go test ./internal/application/usecase -run TestRegistryKafkaSchemasStayAlignedWithProjector
+      - run: sh scripts/package-contracts.sh build/contracts
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gateway-contracts-${{ github.sha }}
+          path: build/contracts/gateway-contracts.tar.gz
+
+  build:
+    runs-on: ubuntu-latest
+    needs:
+      - validate
+      - integration
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t "$GATEWAY_IMAGE:${GITHUB_SHA}" .
+      - run: docker build -t "$GATEWAY_CONSUMER_IMAGE:${GITHUB_SHA}" -f Dockerfile.consumer .
+      - run: docker build -t "$GATEWAY_REPLAYER_IMAGE:${GITHUB_SHA}" -f Dockerfile.replayer .
+
+  publish:
+    runs-on: ubuntu-latest
+    needs:
+      - validate
+      - security
+      - integration
+      - contracts
+      - build
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - run: echo "${{ secrets.GHCR_TOKEN || github.token }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+      - run: docker build -t "$GATEWAY_IMAGE:${GITHUB_SHA}" .
+      - run: docker build -t "$GATEWAY_CONSUMER_IMAGE:${GITHUB_SHA}" -f Dockerfile.consumer .
+      - run: docker build -t "$GATEWAY_REPLAYER_IMAGE:${GITHUB_SHA}" -f Dockerfile.replayer .
+      - run: docker push "$GATEWAY_IMAGE:${GITHUB_SHA}"
+      - run: docker push "$GATEWAY_CONSUMER_IMAGE:${GITHUB_SHA}"
+      - run: docker push "$GATEWAY_REPLAYER_IMAGE:${GITHUB_SHA}"
+
+  sign:
+    runs-on: ubuntu-latest
+    needs: publish
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && secrets.COSIGN_PRIVATE_KEY != ''
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - uses: sigstore/cosign-installer@v3
+      - env:
+          COSIGN_PRIVATE_KEY: ${{ secrets.COSIGN_PRIVATE_KEY }}
+          COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSWORD }}
+        run: cosign sign --yes --key env://COSIGN_PRIVATE_KEY "$GATEWAY_IMAGE:${GITHUB_SHA}"
+      - env:
+          COSIGN_PRIVATE_KEY: ${{ secrets.COSIGN_PRIVATE_KEY }}
+          COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSWORD }}
+        run: cosign sign --yes --key env://COSIGN_PRIVATE_KEY "$GATEWAY_CONSUMER_IMAGE:${GITHUB_SHA}"
+      - env:
+          COSIGN_PRIVATE_KEY: ${{ secrets.COSIGN_PRIVATE_KEY }}
+          COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSWORD }}
+        run: cosign sign --yes --key env://COSIGN_PRIVATE_KEY "$GATEWAY_REPLAYER_IMAGE:${GITHUB_SHA}"
+
+  promote-team1-dev:
+    runs-on: ubuntu-latest
+    needs: publish
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && secrets.PLATFORM_INFRA_GITHUB_TOKEN != ''
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo curl -fsSL -o /usr/local/bin/yq https://github.com/mikefarah/yq/releases/download/v4.44.3/yq_linux_amd64
+      - run: sudo chmod +x /usr/local/bin/yq
+      - env:
+          PLATFORM_INFRA_REPO_URL: https://github.com/ozzus/platform-infra.git
+          PLATFORM_INFRA_GITHUB_REPO: ozzus/platform-infra
+          PLATFORM_INFRA_GITHUB_TOKEN: ${{ secrets.PLATFORM_INFRA_GITHUB_TOKEN }}
+          TARGET_TEAM: team1
+          TARGET_ENV: dev
+          PROMOTION_MODE: direct
+        run: sh scripts/promote-platform-infra.sh
+
+  promote-team2-dev:
+    runs-on: ubuntu-latest
+    needs: publish
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && secrets.PLATFORM_INFRA_GITHUB_TOKEN != ''
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo curl -fsSL -o /usr/local/bin/yq https://github.com/mikefarah/yq/releases/download/v4.44.3/yq_linux_amd64
+      - run: sudo chmod +x /usr/local/bin/yq
+      - env:
+          PLATFORM_INFRA_REPO_URL: https://github.com/ozzus/platform-infra.git
+          PLATFORM_INFRA_GITHUB_REPO: ozzus/platform-infra
+          PLATFORM_INFRA_GITHUB_TOKEN: ${{ secrets.PLATFORM_INFRA_GITHUB_TOKEN }}
+          TARGET_TEAM: team2
+          TARGET_ENV: dev
+          PROMOTION_MODE: direct
+        run: sh scripts/promote-platform-infra.sh
+
+  promote-manual:
+    runs-on: ubuntu-latest
+    needs: publish
+    if: github.event_name == 'workflow_dispatch' && secrets.PLATFORM_INFRA_GITHUB_TOKEN != ''
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo curl -fsSL -o /usr/local/bin/yq https://github.com/mikefarah/yq/releases/download/v4.44.3/yq_linux_amd64
+      - run: sudo chmod +x /usr/local/bin/yq
+      - env:
+          PLATFORM_INFRA_REPO_URL: https://github.com/ozzus/platform-infra.git
+          PLATFORM_INFRA_GITHUB_REPO: ozzus/platform-infra
+          PLATFORM_INFRA_GITHUB_TOKEN: ${{ secrets.PLATFORM_INFRA_GITHUB_TOKEN }}
+          TARGET_TEAM: ${{ inputs.promote_team }}
+          TARGET_ENV: ${{ inputs.promote_env }}
+          PROMOTION_MODE: ${{ inputs.promotion_mode }}
+        run: sh scripts/promote-platform-infra.sh
