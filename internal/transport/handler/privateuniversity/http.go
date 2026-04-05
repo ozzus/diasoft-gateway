@@ -11,7 +11,7 @@ import (
 	transportmiddleware "github.com/ssovich/diasoft-gateway/internal/transport/middleware"
 )
 
-const maxUploadBytes = 20 << 20
+const maxUploadBytes = 64 << 20
 
 type HTTPHandler struct {
 	registry privateapi.RegistryClient
