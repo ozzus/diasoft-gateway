@@ -53,6 +53,7 @@ type VerificationRecordProjection struct {
 	VerificationToken string
 	UniversityCode    string
 	DiplomaNumber     string
+	StudentName       string
 	StudentNameMasked string
 	ProgramName       string
 	Status            string
@@ -72,4 +73,5 @@ type ReadModelRepository interface {
 	MarkProcessed(ctx context.Context, eventID, eventType string) error
 	UpsertVerificationRecord(ctx context.Context, record VerificationRecordProjection) error
 	UpsertShareLinkRecord(ctx context.Context, record ShareLinkRecordProjection) error
+	UpsertStudentAuthUser(ctx context.Context, diplomaID, diplomaNumber, studentName string) error
 }

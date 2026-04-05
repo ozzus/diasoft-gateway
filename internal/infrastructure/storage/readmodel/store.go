@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -15,6 +16,8 @@ var _ port.ReadModelRepository = (*Store)(nil)
 type Store struct {
 	pool *pgxpool.Pool
 }
+
+const defaultStudentPasswordHash = "$2a$10$7f2jyY18zCn5LeyJt2jP9Of0WixOkOTahKsBgd98iWlu9M6QXtMAy"
 
 func NewStore(pool *pgxpool.Pool) *Store {
 	return &Store{pool: pool}
@@ -63,6 +66,31 @@ func (s *Store) UpsertVerificationRecord(ctx context.Context, record port.Verifi
 	)
 	if err != nil {
 		return fmt.Errorf("upsert verification record: %w", err)
+	}
+	return nil
+}
+
+func (s *Store) UpsertStudentAuthUser(ctx context.Context, diplomaID, diplomaNumber, studentName string) error {
+	if strings.TrimSpace(diplomaID) == "" || strings.TrimSpace(diplomaNumber) == "" || strings.TrimSpace(studentName) == "" {
+		return nil
+	}
+
+	_, err := s.pool.Exec(
+		ctx,
+		`insert into auth_users (id, login, password_hash, name, role, diploma_id, created_at, updated_at)
+		 values ($1::uuid, $2, $3, $4, 'student', $5::uuid, now(), now())
+		 on conflict (login, role) do update set
+		   name = excluded.name,
+		   diploma_id = excluded.diploma_id,
+		   updated_at = now()`,
+		diplomaID,
+		strings.TrimSpace(diplomaNumber),
+		defaultStudentPasswordHash,
+		strings.TrimSpace(studentName),
+		diplomaID,
+	)
+	if err != nil {
+		return fmt.Errorf("upsert student auth user: %w", err)
 	}
 	return nil
 }

@@ -166,6 +166,7 @@ func TestProjectEventsUpsertsReadModelAndInvalidatesCache(t *testing.T) {
 		VerificationToken: "verification-token-3",
 		UniversityCode:    "BMSTU",
 		DiplomaNumber:     "D-300",
+		StudentName:       "Сергеев Сергей",
 		StudentNameMasked: "S*** S***",
 		ProgramName:       "Robotics",
 		Status:            string(domainverification.StatusRevoked),
@@ -185,6 +186,20 @@ func TestProjectEventsUpsertsReadModelAndInvalidatesCache(t *testing.T) {
 	}
 	if persistedStatus != string(domainverification.StatusRevoked) {
 		t.Fatalf("persisted status = %s, want %s", persistedStatus, domainverification.StatusRevoked)
+	}
+
+	var (
+		authName      string
+		authDiplomaID string
+	)
+	if err := env.dbPool.QueryRow(ctx, `select name, diploma_id::text from auth_users where login = $1 and role = 'student'`, "D-300").Scan(&authName, &authDiplomaID); err != nil {
+		t.Fatalf("query projected student auth user: %v", err)
+	}
+	if authName != "Сергеев Сергей" {
+		t.Fatalf("student auth name = %s, want %s", authName, "Сергеев Сергей")
+	}
+	if authDiplomaID != "33333333-3333-3333-3333-333333333333" {
+		t.Fatalf("student auth diploma_id = %s, want %s", authDiplomaID, "33333333-3333-3333-3333-333333333333")
 	}
 
 	if _, found, err := cache.Get(ctx, lookupKey); err != nil {

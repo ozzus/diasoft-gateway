@@ -23,6 +23,7 @@ type DiplomaLifecyclePayload struct {
 	VerificationToken string `json:"verification_token"`
 	UniversityCode    string `json:"university_code"`
 	DiplomaNumber     string `json:"diploma_number"`
+	StudentName       string `json:"student_name"`
 	StudentNameMasked string `json:"student_name_masked"`
 	ProgramName       string `json:"program_name"`
 	Status            string `json:"status"`
@@ -73,10 +74,14 @@ func (u *ProjectEvents) Handle(ctx context.Context, event EventEnvelope) error {
 			VerificationToken: payload.VerificationToken,
 			UniversityCode:    payload.UniversityCode,
 			DiplomaNumber:     payload.DiplomaNumber,
+			StudentName:       payload.StudentName,
 			StudentNameMasked: payload.StudentNameMasked,
 			ProgramName:       payload.ProgramName,
 			Status:            payload.Status,
 		}); err != nil {
+			return err
+		}
+		if err := u.repository.UpsertStudentAuthUser(ctx, payload.DiplomaID, payload.DiplomaNumber, payload.StudentName); err != nil {
 			return err
 		}
 		u.invalidateVerificationCache(ctx, payload.VerificationToken, payload.DiplomaNumber, payload.UniversityCode)
